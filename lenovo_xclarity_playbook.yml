@@ -1,6 +1,7 @@
 ---
 - name: Manage Lenovo XClarity BMC Controller
   hosts: localhost
+  connection: local
   gather_facts: false
   vars:
     # BMC connection variables (passed as extra vars)

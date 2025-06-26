@@ -25,13 +25,7 @@ A comprehensive Ansible playbook for managing Lenovo XClarity BMC controllers vi
    cd lenovo-xclarity-ansible
    ```
 
-2. **Create inventory file**:
-   ```bash
-   cp inventory.yml.example inventory.yml
-   # Edit inventory.yml with your settings
-   ```
-
-3. **Install Ansible** (if not already installed):
+2. **Install Ansible** (if not already installed):
    ```bash
    # Ubuntu/Debian
    sudo apt update && sudo apt install ansible
@@ -48,19 +42,6 @@ A comprehensive Ansible playbook for managing Lenovo XClarity BMC controllers vi
 
 ## Configuration
 
-### Inventory File
-
-Create an `inventory.yml` file (excluded from git):
-
-```yaml
----
-all:
-  hosts:
-    localhost:
-      ansible_connection: local
-      ansible_python_interpreter: "{{ ansible_playbook_python }}"
-```
-
 ### Required Variables
 
 The playbook requires these variables to be passed as extra vars:
@@ -70,9 +51,9 @@ The playbook requires these variables to be passed as extra vars:
 | `bmc_host` | Yes | BMC IP address or hostname | `192.168.1.100` |
 | `bmc_username` | Yes | BMC username | `admin` |
 | `bmc_password` | Yes | BMC password | `password123` |
-| `action` | No | Power action to perform | `on`, `off`, `reset`, `status` |
-| `pxe_boot` | No | Enable PXE boot (default: false) | `true`, `false` |
-| `auto_reset_pxe` | No | Auto reset after PXE config (default: false) | `true`, `false` |
+| `power_action` | No | Power action to perform | `on`, `off`, `reset`, `status` |
+| `enable_pxe_boot` | No | Enable PXE boot (default: false) | `true`, `false` |
+| `auto_reset_after_pxe` | No | Auto reset after PXE config (default: false) | `true`, `false` |
 
 ## Usage Examples
 
@@ -80,67 +61,67 @@ The playbook requires these variables to be passed as extra vars:
 
 **Check power status**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=status
+  -e power_action=status
 ```
 
 **Power on system**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=on
+  -e power_action=on
 ```
 
 **Power off system (graceful)**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=off
+  -e power_action=off
 ```
 
 **Force power off**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=force_off
+  -e power_action=force_off
 ```
 
 **Reset system**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=reset
+  -e power_action=reset
 ```
 
 ### PXE Boot Configuration
 
 **Configure PXE boot (manual reset required)**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e pxe_boot=true
+  -e enable_pxe_boot=true
 ```
 
 **Configure PXE boot with automatic reset**:
 ```bash
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e auto_reset_pxe=true
+  -e auto_reset_after_pxe=true
 ```
 
 ### Advanced Examples
@@ -151,11 +132,11 @@ export BMC_HOST=192.168.1.100
 export BMC_USER=admin
 export BMC_PASS=password123
 
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   -e bmc_host=$BMC_HOST \
   -e bmc_username=$BMC_USER \
   -e bmc_password=$BMC_PASS \
-  -e action=on
+  -e power_action=on
 ```
 
 **Using Ansible Vault for passwords**:
@@ -167,12 +148,12 @@ ansible-vault create secrets.yml
 # bmc_password: password123
 
 # Run playbook with vault
-ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook lenovo_xclarity_playbook.yml \
   --ask-vault-pass \
   -e @secrets.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
-  -e action=on
+  -e power_action=on
 ```
 
 ## Playbook Behavior
@@ -182,7 +163,7 @@ ansible-playbook -i inventory.yml lenovo_xclarity_playbook.yml \
 The playbook will exit gracefully in these scenarios:
 - System is already in the desired power state
 - Reset requested on a powered-off system
-- Conflicting parameters (auto_reset_pxe + manual power action)
+- Conflicting parameters (auto_reset_after_pxe + manual power action)
 
 ### Power State Monitoring
 
@@ -243,7 +224,7 @@ Available tags:
 - For production, consider proper certificate management
 
 **Power action failed**:
-- Check current power state first (`action=status`)
+- Check current power state first (`power_action=status`)
 - Some actions require specific power states (e.g., reset needs system to be on)
 - Wait for previous power operations to complete
 
@@ -252,11 +233,11 @@ Available tags:
 Enable verbose output for troubleshooting:
 
 ```bash
-ansible-playbook -vvv -i inventory.yml lenovo_xclarity_playbook.yml \
+ansible-playbook -vvv lenovo_xclarity_playbook.yml \
   -e bmc_host=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e action=status
+  -e power_action=status
 ```
 
 ### Timeout Issues
@@ -271,7 +252,7 @@ If operations timeout:
 - **Credentials**: Never commit passwords to version control
 - **Network**: Use secure networks for BMC communication
 - **Certificates**: Consider proper certificate validation for production
-- **Inventory**: The `.gitignore` excludes inventory files containing credentials
+- **No Inventory Required**: The playbook runs locally without needing inventory files
 
 ## Compatible Hardware
 
