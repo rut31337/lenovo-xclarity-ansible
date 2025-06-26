@@ -8,7 +8,6 @@ A comprehensive Ansible playbook for managing Lenovo XClarity BMC controllers vi
 - **PXE Boot Configuration**: One-time PXE boot setup with automatic system reset
 - **Intelligent Monitoring**: Active power state monitoring until desired state is reached
 - **Error Handling**: Graceful exits and validation for invalid operations
-- **Security**: Inventory files are excluded from version control
 
 ## Prerequisites
 
@@ -48,12 +47,11 @@ The playbook requires these variables to be passed as extra vars:
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `bmc_host` | Yes | BMC IP address or hostname | `192.168.1.100` |
+| `bmc_hostname` | Yes | BMC IP address or hostname | `192.168.1.100` |
 | `bmc_username` | Yes | BMC username | `admin` |
 | `bmc_password` | Yes | BMC password | `password123` |
 | `power_action` | No | Power action to perform | `on`, `off`, `reset`, `status` |
-| `enable_pxe_boot` | No | Enable PXE boot (default: false) | `true`, `false` |
-| `auto_reset_after_pxe` | No | Auto reset after PXE config (default: false) | `true`, `false` |
+| `enable_pxe_boot_and_reset` | No | Enable PXE boot with auto reset (default: false) | `true`, `false` |
 
 ## Usage Examples
 
@@ -62,7 +60,7 @@ The playbook requires these variables to be passed as extra vars:
 **Check power status**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=status
@@ -71,7 +69,7 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 **Power on system**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=on
@@ -80,7 +78,7 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 **Power off system (graceful)**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=off
@@ -89,7 +87,7 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 **Force power off**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=force_off
@@ -98,7 +96,7 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 **Reset system**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=reset
@@ -106,22 +104,13 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 
 ### PXE Boot Configuration
 
-**Configure PXE boot (manual reset required)**:
-```bash
-ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
-  -e bmc_username=admin \
-  -e bmc_password=password123 \
-  -e enable_pxe_boot=true
-```
-
 **Configure PXE boot with automatic reset**:
 ```bash
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
-  -e auto_reset_after_pxe=true
+  -e enable_pxe_boot_and_reset=true
 ```
 
 ### Advanced Examples
@@ -133,7 +122,7 @@ export BMC_USER=admin
 export BMC_PASS=password123
 
 ansible-playbook lenovo_xclarity_playbook.yml \
-  -e bmc_host=$BMC_HOST \
+  -e bmc_hostname=$BMC_HOST \
   -e bmc_username=$BMC_USER \
   -e bmc_password=$BMC_PASS \
   -e power_action=on
@@ -151,7 +140,7 @@ ansible-vault create secrets.yml
 ansible-playbook lenovo_xclarity_playbook.yml \
   --ask-vault-pass \
   -e @secrets.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e power_action=on
 ```
@@ -163,7 +152,7 @@ ansible-playbook lenovo_xclarity_playbook.yml \
 The playbook will exit gracefully in these scenarios:
 - System is already in the desired power state
 - Reset requested on a powered-off system
-- Conflicting parameters (auto_reset_after_pxe + manual power action)
+- Conflicting parameters (enable_pxe_boot_and_reset + manual power action)
 
 ### Power State Monitoring
 
@@ -234,7 +223,7 @@ Enable verbose output for troubleshooting:
 
 ```bash
 ansible-playbook -vvv lenovo_xclarity_playbook.yml \
-  -e bmc_host=192.168.1.100 \
+  -e bmc_hostname=192.168.1.100 \
   -e bmc_username=admin \
   -e bmc_password=password123 \
   -e power_action=status
