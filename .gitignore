@@ -1,0 +1,18 @@
+# Exclude inventory files - they may contain sensitive connection details
+inventory.yml
+inventory.yaml
+*inventory*
+
+# Exclude any credential or configuration files
+*.credentials
+*.secrets
+config.yml
+config.yaml
+
+# Exclude temporary files
+*.tmp
+*.bak
+*~
+
+# Exclude logs
+*.log 
