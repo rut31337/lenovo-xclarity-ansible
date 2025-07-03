@@ -1,0 +1,34 @@
+---
+galaxy_info:
+  author: prutledg
+  description: Power management for Lenovo XClarity BMC via Redfish API
+  company: 
+  license: MIT
+  min_ansible_version: 2.9
+  
+  platforms:
+    - name: EL
+      versions:
+        - 7
+        - 8
+        - 9
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+  
+  galaxy_tags:
+    - redfish
+    - bmc
+    - lenovo
+    - xclarity
+    - power
+    - pxe
+    - boot
+
+dependencies:
+  - name: lenovo_xclarity_common 

@@ -1,0 +1,56 @@
+---
+- name: Verify user creation
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ available_user_slots[0].json['@odata.id'] }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  when: not target_user_exists and user_action == 'create' and create_user_result is succeeded
+  register: verify_user_creation
+  tags: [create, users, verification]
+
+- name: Display user creation success
+  ansible.builtin.debug:
+    msg: 
+      - "User '{{ target_username }}' created successfully"
+      - "Username: {{ verify_user_creation.json.UserName }}"
+      - "Role: {{ verify_user_creation.json.RoleId }}"
+      - "Enabled: {{ verify_user_creation.json.Enabled }}"
+      - "User ID: {{ verify_user_creation.json.Id }}"
+  when: not target_user_exists and user_action == 'create' and verify_user_creation is defined and verify_user_creation is succeeded
+  tags: [create, users, verification]
+
+- name: Verify user deletion
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ target_user_info.endpoint }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: [200, 404]
+  when: target_user_exists and user_action == 'delete' and delete_user_result is succeeded
+  register: verify_user_deletion
+  failed_when: false
+  tags: [delete, users, verification]
+
+- name: Display user deletion success
+  ansible.builtin.debug:
+    msg: 
+      - "User '{{ target_username }}' deleted successfully"
+      - "User account removed from BMC"
+      - "User slot ID {{ target_user_info.id }} is now available"
+      - "Verification status: {{ 'User not found (expected)' if verify_user_deletion.status == 404 else 'User slot cleared' if (verify_user_deletion.json.UserName | default('')) == '' else 'Unexpected state' }}"
+  when: target_user_exists and user_action == 'delete' and verify_user_deletion is defined
+  tags: [delete, users, verification]
+
+- name: Display password update success
+  ansible.builtin.debug:
+    msg: "Password for user '{{ target_username }}' updated successfully"
+  when: target_user_exists and user_action == 'update_password' and update_password_result is succeeded
+  tags: [update_password, users] 

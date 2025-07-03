@@ -1,0 +1,69 @@
+---
+- name: Get current user accounts
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ account_service_info.json.Accounts['@odata.id'] }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: user_accounts
+  tags: [always, users]
+
+- name: Extract user account details
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: user_details
+  loop: "{{ user_accounts.json.Members }}"
+  tags: [always, users]
+
+- name: Create user details summary
+  ansible.builtin.set_fact:
+    existing_users: "{{ existing_users | default([]) + [{'username': item.json.UserName, 'enabled': item.json.Enabled, 'role': item.json.RoleId, 'id': item.json.Id, 'endpoint': item.json['@odata.id']}] }}"
+  loop: "{{ user_details.results }}"
+  when: item.json.UserName is defined and item.json.UserName != ""
+  tags: [always, users]
+
+- name: Display existing users
+  ansible.builtin.debug:
+    msg: "Existing users: {{ existing_users | default([]) }}"
+  tags: [always, users]
+
+- name: Check if target user already exists
+  ansible.builtin.set_fact:
+    target_user_exists: "{{ existing_users | default([]) | selectattr('username', 'equalto', target_username) | list | length > 0 }}"
+    target_user_info: "{{ existing_users | default([]) | selectattr('username', 'equalto', target_username) | first | default({}) }}"
+  tags: [always, users]
+
+- name: Find available user slots for new user
+  ansible.builtin.set_fact:
+    available_user_slots: "{{ user_details.results | selectattr('json.UserName', 'undefined') + user_details.results | selectattr('json.UserName', 'equalto', '') | list }}"
+  when: not target_user_exists and user_action == 'create'
+  tags: [create, users]
+
+- name: Validate user existence for operations
+  ansible.builtin.fail:
+    msg: "No available user slots to create new user '{{ target_username }}'. All user accounts are occupied."
+  when: not target_user_exists and user_action == 'create' and (available_user_slots | length == 0)
+  tags: [create, users]
+
+- name: Validate user existence for password update
+  ansible.builtin.fail:
+    msg: "User '{{ target_username }}' does not exist. Cannot update password for non-existent user."
+  when: not target_user_exists and user_action == 'update_password'
+  tags: [update_password, users]
+
+- name: Validate user existence for deletion
+  ansible.builtin.fail:
+    msg: "User '{{ target_username }}' does not exist. Cannot delete non-existent user."
+  when: not target_user_exists and user_action == 'delete'
+  tags: [delete, users] 

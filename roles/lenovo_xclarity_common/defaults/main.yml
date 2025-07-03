@@ -1,0 +1,15 @@
+---
+# Common BMC connection variables
+bmc_hostname: ""
+bmc_username: ""
+bmc_password: ""
+
+# Connection settings
+bmc_validate_certs: false
+bmc_force_basic_auth: true
+bmc_timeout: 30
+
+# Common endpoints
+redfish_base_url: "/redfish/v1"
+systems_endpoint: "/redfish/v1/Systems/1"
+account_service_endpoint: "/redfish/v1/AccountService" 

@@ -1,0 +1,97 @@
+---
+- name: Power on the system
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      ResetType: "On"
+    status_code: [200, 202, 204]
+  when: power_action == "on" and power_status.json.PowerState != "On"
+  register: power_on_result
+  tags: [power, power_on]
+
+- name: Power off the system (graceful)
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      ResetType: "GracefulShutdown"
+    status_code: [200, 202, 204]
+  when: power_action == "off" and power_status.json.PowerState == "On"
+  register: power_off_result
+  tags: [power, power_off]
+
+- name: Force power off the system
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      ResetType: "ForceOff"
+    status_code: [200, 202, 204]
+  when: power_action == "force_off" and power_status.json.PowerState == "On"
+  register: force_power_off_result
+  tags: [power, force_power_off]
+
+- name: Reset the system
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      ResetType: "ForceRestart"
+    status_code: [200, 202, 204]
+  when: power_action == "reset"
+  register: reset_result
+  tags: [power, reset]
+
+- name: Display power action result
+  ansible.builtin.debug:
+    msg: "Power action '{{ power_action }}' completed successfully"
+  when: power_action in ['on', 'off', 'force_off', 'reset'] and 
+        (power_on_result is succeeded or power_off_result is succeeded or 
+         force_power_off_result is succeeded or reset_result is succeeded)
+  tags: [power]
+
+- name: Monitor power state until desired state is reached
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: final_power_status
+  until: >
+    (power_action == 'on' and final_power_status.json.PowerState == 'On') or
+    (power_action in ['off', 'force_off'] and final_power_status.json.PowerState == 'Off') or
+    (power_action == 'reset' and final_power_status.json.PowerState == 'On') or
+    (power_action == 'status' or power_action is not defined)
+  retries: "{{ power_monitoring_retries }}"
+  delay: "{{ power_monitoring_delay }}"
+  when: power_action in ['on', 'off', 'force_off', 'reset']
+  tags: [power] 

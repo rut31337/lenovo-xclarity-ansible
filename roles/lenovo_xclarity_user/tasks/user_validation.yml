@@ -1,0 +1,33 @@
+---
+- name: Validate user action parameter
+  ansible.builtin.fail:
+    msg: "Invalid user_action '{{ user_action }}'. Must be one of: {{ valid_user_actions | join(', ') }}"
+  when: user_action not in valid_user_actions
+  tags: [always, validation]
+
+- name: Validate user role parameter
+  ansible.builtin.fail:
+    msg: "Invalid user_role '{{ user_role }}'. Must be one of: {{ valid_user_roles | join(', ') }}"
+  when: user_role not in valid_user_roles
+  tags: [always, validation]
+
+- name: Validate target username is provided
+  ansible.builtin.fail:
+    msg: "target_username is required and cannot be empty"
+  when: target_username is not defined or target_username == ""
+  tags: [always, validation]
+
+- name: Validate target password is provided for create/update actions
+  ansible.builtin.fail:
+    msg: "target_password is required and cannot be empty when user_action is '{{ user_action }}'"
+  when: 
+    - user_action in ['create', 'update_password']
+    - target_password is not defined or target_password == ""
+  tags: [always, validation]
+
+- name: Include password validation tasks
+  ansible.builtin.include_tasks: password_validation.yml
+  when: 
+    - target_password is defined and target_password != ""
+    - user_action in ['create', 'update_password']
+  tags: [always, validation] 

@@ -1,0 +1,17 @@
+---
+# Power management options
+power_action: "status"  # status, on, off, force_off, reset
+
+# PXE boot settings
+enable_pxe_boot_and_reset: false
+
+# Power monitoring settings
+power_monitoring_retries: 30
+power_monitoring_delay: 5
+
+# Reset types mapping
+reset_types:
+  on: "On"
+  off: "GracefulShutdown"
+  force_off: "ForceOff"
+  reset: "ForceRestart" 

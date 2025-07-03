@@ -1,0 +1,23 @@
+---
+- name: Lenovo XClarity Combined Management
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  tasks:
+    - name: Display operation type
+      ansible.builtin.debug:
+        msg: "Executing {{ operation_type | default('power') }} operation(s) on BMC {{ bmc_hostname }}"
+      tags: [always]
+    
+    - name: Execute power management operations
+      ansible.builtin.include_role:
+        name: lenovo_xclarity_power
+      when: operation_type | default('power') in ['power', 'both']
+      tags: [power]
+    
+    - name: Execute user management operations
+      ansible.builtin.include_role:
+        name: lenovo_xclarity_user
+      when: operation_type | default('power') in ['user', 'both']
+      tags: [user] 

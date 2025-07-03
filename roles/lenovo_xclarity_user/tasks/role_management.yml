@@ -1,0 +1,109 @@
+---
+- name: Get user details after creation/update
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ target_user_info.endpoint if target_user_exists else available_user_slots[0].json['@odata.id'] }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: user_details_after_action
+  tags: [role_management, users]
+
+- name: Extract account slot number for custom role
+  ansible.builtin.set_fact:
+    account_slot_number: "{{ (target_user_info.endpoint if target_user_exists else available_user_slots[0].json['@odata.id']) | regex_search('/(\\d+)$') | regex_replace('/', '') }}"
+  when: user_role == "PowerUser"
+  tags: [role_management, users]
+
+- name: Set custom role information
+  ansible.builtin.set_fact:
+    custom_role_name: "CustomRole{{ account_slot_number }}"
+    custom_role_endpoint: "{{ account_service_info.json.Roles['@odata.id'] }}/CustomRole{{ account_slot_number }}"
+  when: 
+    - user_role == "PowerUser"
+    - account_slot_number is defined
+    - account_slot_number != ""
+  tags: [role_management, users]
+
+- name: Update CustomRole with PowerUser privileges
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ custom_role_endpoint }}"
+    method: PATCH
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      OemPrivileges: "{{ poweruser_privileges }}"
+    status_code: [200, 202, 204]
+  when: 
+    - user_role == "PowerUser"
+    - custom_role_endpoint is defined
+    - custom_role_endpoint != ""
+  register: poweruser_role_update
+  tags: [role_management, poweruser]
+
+- name: Assign user to CustomRole after PowerUser update
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ target_user_info.endpoint if target_user_exists else available_user_slots[0].json['@odata.id'] }}"
+    method: PATCH
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      RoleId: "{{ custom_role_name }}"
+    status_code: [200, 202, 204]
+  when: 
+    - user_role == "PowerUser"
+    - poweruser_role_update is defined
+    - poweruser_role_update is succeeded
+    - custom_role_name is defined
+  register: user_role_assignment
+  tags: [role_management, poweruser]
+
+- name: Update user's role with standard role privileges
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ target_user_info.endpoint if target_user_exists else available_user_slots[0].json['@odata.id'] }}"
+    method: PATCH
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    body_format: json
+    body:
+      RoleId: "{{ user_role }}"
+    status_code: [200, 202, 204]
+  when: 
+    - user_role in ['Administrator', 'Operator', 'ReadOnly']
+    - user_role != "PowerUser"
+  register: standard_role_update
+  tags: [role_management, standard]
+
+- name: Display PowerUser role update result
+  ansible.builtin.debug:
+    msg: 
+      - "{{ custom_role_name | default('CustomRole') }} updated successfully with PowerUser privileges"
+      - "Role privileges: {{ poweruser_privileges | join(', ') }}"
+      - "User assigned to {{ custom_role_name | default('CustomRole') }}: {{ 'Success' if (user_role_assignment is defined and user_role_assignment is succeeded) else 'Pending' }}"
+  when: 
+    - user_role == "PowerUser"
+    - poweruser_role_update is defined
+    - poweruser_role_update is succeeded
+  tags: [role_management, poweruser]
+
+- name: Display standard role update result
+  ansible.builtin.debug:
+    msg: "User assigned to {{ user_role }} role successfully"
+  when: 
+    - standard_role_update is defined
+    - standard_role_update is succeeded
+  tags: [role_management, standard] 

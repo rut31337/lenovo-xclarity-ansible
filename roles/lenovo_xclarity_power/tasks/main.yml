@@ -1,0 +1,77 @@
+---
+- name: Include common BMC tasks
+  ansible.builtin.include_role:
+    name: lenovo_xclarity_common
+  tags: [always]
+
+- name: Validate power action parameter
+  ansible.builtin.fail:
+    msg: "Invalid power_action. Must be one of: on, off, force_off, reset, status"
+  when: power_action not in ['on', 'off', 'force_off', 'reset', 'status']
+  tags: [always, validation]
+
+- name: Exit with error if both enable_pxe_boot_and_reset and power_action are set
+  block:
+    - name: Display configuration error message
+      ansible.builtin.debug:
+        msg: "ERROR: Cannot specify both enable_pxe_boot_and_reset and power_action. When enable_pxe_boot_and_reset is enabled, the system will automatically reset after PXE configuration."
+    - name: End playbook execution with error
+      ansible.builtin.meta: end_play
+  when: (enable_pxe_boot_and_reset | bool) and power_action is defined and power_action != 'status'
+  tags: [always, validation]
+
+- name: Get current power state
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ systems_endpoint }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: power_status
+  tags: [always, power]
+
+- name: Display current power state
+  ansible.builtin.debug:
+    msg: "Current power state: {{ power_status.json.PowerState }}"
+  tags: [always, power]
+
+- name: Exit gracefully if system is already in desired power state
+  block:
+    - name: Display graceful exit message
+      ansible.builtin.debug:
+        msg: "System is already in the desired state '{{ power_status.json.PowerState }}' for action '{{ power_action }}'. Exiting gracefully."
+    - name: End playbook execution
+      ansible.builtin.meta: end_play
+  when: >
+    (power_action == 'on' and power_status.json.PowerState == 'On') or
+    (power_action in ['off', 'force_off'] and power_status.json.PowerState == 'Off')
+  tags: [always, power]
+
+- name: Exit gracefully if reset requested on powered off system
+  block:
+    - name: Display reset on off system message
+      ansible.builtin.debug:
+        msg: "Cannot reset system that is currently '{{ power_status.json.PowerState }}'. System must be powered on before it can be reset. Use power_action 'on' to power on the system first."
+    - name: End playbook execution
+      ansible.builtin.meta: end_play
+  when: power_action == 'reset' and power_status.json.PowerState != 'On'
+  tags: [always, power]
+
+- name: Include power operation tasks
+  ansible.builtin.include_tasks: power_operations.yml
+  when: power_action in ['on', 'off', 'force_off', 'reset'] and not (enable_pxe_boot_and_reset | bool)
+  tags: [power]
+
+- name: Include PXE boot tasks
+  ansible.builtin.include_tasks: pxe_boot.yml
+  when: enable_pxe_boot_and_reset | bool
+  tags: [pxe]
+
+- name: Display final power state
+  ansible.builtin.debug:
+    msg: "Final power state: {{ final_power_status.json.PowerState }}"
+  when: final_power_status is defined
+  tags: [always, power] 

@@ -1,0 +1,8 @@
+---
+- name: Lenovo XClarity Power Management
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  roles:
+    - lenovo_xclarity_power 

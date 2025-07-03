@@ -1,0 +1,64 @@
+---
+- name: Include common BMC tasks
+  ansible.builtin.include_role:
+    name: lenovo_xclarity_common
+  tags: [always]
+
+- name: Include user validation tasks
+  ansible.builtin.include_tasks: user_validation.yml
+  tags: [always, validation]
+
+- name: Get account service information
+  ansible.builtin.uri:
+    url: "https://{{ bmc_hostname }}{{ account_service_endpoint }}"
+    method: GET
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    validate_certs: "{{ bmc_validate_certs }}"
+    force_basic_auth: "{{ bmc_force_basic_auth }}"
+    timeout: "{{ bmc_timeout }}"
+    status_code: 200
+  register: account_service_info
+  tags: [always, account_service]
+
+- name: Display account service information
+  ansible.builtin.debug:
+    msg: 
+      - "Account Service ID: {{ account_service_info.json.Id }}"
+      - "Max password length: {{ account_service_info.json.MaxPasswordLength | default('Not specified') }}"
+      - "Min password length: {{ account_service_info.json.MinPasswordLength | default('Not specified') }}"
+      - "Accounts endpoint: {{ account_service_info.json.Accounts['@odata.id'] }}"
+  tags: [always, account_service]
+
+- name: Include user discovery tasks
+  ansible.builtin.include_tasks: user_discovery.yml
+  tags: [always, users]
+
+- name: Display target user status
+  ansible.builtin.debug:
+    msg: 
+      - "Target user '{{ target_username }}' exists: {{ target_user_exists }}"
+      - "Target user info: {{ target_user_info }}"
+  when: user_action == 'status' or target_user_exists
+  tags: [always, users, status]
+
+- name: Exit gracefully if only requesting user status
+  ansible.builtin.meta: end_play
+  when: user_action == 'status'
+  tags: [status]
+
+- name: Include user management tasks
+  ansible.builtin.include_tasks: user_management.yml
+  when: user_action in ['create', 'update_password', 'delete']
+  tags: [user_management]
+
+- name: Display operation summary
+  ansible.builtin.debug:
+    msg: 
+      - "BMC User Management Operation Completed"
+      - "Action: {{ user_action }}"
+      - "Target User: {{ target_username }}"
+      - "User Role: {{ user_role }}"
+      - "Status: {{ operation_status | default('Unknown') }}"
+  when: user_action in ['create', 'update_password', 'delete']
+  tags: [always, summary] 
